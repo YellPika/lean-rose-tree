@@ -29,9 +29,11 @@ instance : Monad Rose where
   pure x := ⟨x, []⟩
   bind := flip bind
 
+/-- An injection into the natural numbers. -/
 def encode [Encodable A] : Rose A → ℕ
   | ⟨x, xs⟩ => Nat.pair (Encodable.encode x) (Encodable.encode (List.map encode xs))
 
+/-- The inverse of `encode`. -/
 def decode [Encodable A] (n : ℕ) : Option (Rose A) :=
   match Nat.unpair n, Nat.unpair_right_le n with
   | (i, j), h => do
