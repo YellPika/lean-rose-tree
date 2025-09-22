@@ -1,5 +1,6 @@
 import RoseTree.Defs
 import Mathlib.Tactic.NthRewrite
+import Mathlib.Control.Traversable.Instances
 
 universe u
 
@@ -37,6 +38,17 @@ lemma induction
   | cons label children ih tail_ih =>
     simp only [List.mem_cons, forall_eq_or_imp, ih, true_and]
     exact tail_ih
+
+lemma induction'
+    (motive : Rose A → Prop)
+    (mk : (label : A)
+        → (children : List (Rose A))
+        → (ih : ∀ i : Fin _, motive children[i])
+        → motive (.mk label children))
+    (t : Rose A)
+    : motive t := by
+  induction t with | mk label children ih =>
+  grind
 
 lemma bind_pure (t : Rose A) : bind (fun x ↦ ⟨x, []⟩) t = t := by
   induction t with | mk label children ih =>
@@ -138,5 +150,52 @@ instance : LawfulMonad Rose where
     simp only [map_eq, id_eq, pure_eq, bind_pure_fun, implies_true]
 
   map_const := rfl
+
+@[simp]
+private lemma traverse_map
+    {F : Type _ → Type _} [Applicative F] [LawfulApplicative F]
+    (f : B → F C)
+    (g : A → B) (xs : List A)
+    : List.traverse f (List.map g xs) = List.traverse (fun x ↦ f (g x)) xs := by
+  induction xs with
+  | nil => simp only [List.map_nil, List.traverse.eq_1]
+  | cons head tail ih => simp only [List.map_cons, List.traverse, ih]
+
+@[simp]
+private lemma traverse_pure
+    {F : Type _ → Type _} [Applicative F] [LawfulApplicative F]
+    (xs : List A)
+    : List.traverse (pure : _ → F _) xs = pure xs := by
+  induction xs with
+  | nil => simp [List.traverse.eq_1]
+  | cons head tail ih => simp [List.traverse.eq_2, ih]
+
+@[simp]
+lemma decode_encode [Encodable A] (t : Rose A) : decode (encode t) = some t := by
+  induction t with | mk label children ih =>
+  simp only [encode]
+  unfold decode
+  simp only [
+    Nat.unpair_pair, Encodable.decode₂_encode, Fin.getElem_fin,
+    List.ofFn_getElem_eq_map, Option.pure_def, Option.bind_eq_bind,
+    Option.bind_some]
+  rw [Nat.unpair_pair, Encodable.encodek]
+  simp only [List.map_map]
+  rw [←List.ofFn_getElem_eq_map]
+  simp only [
+    Function.comp_apply, List.getElem_mem, ih,
+    List.ofFn_getElem_eq_map, traverse_map, id_eq]
+  change Option.bind (List.traverse pure children) _ = _
+  simp only [traverse_pure]
+  simp only [Option.pure_def, Option.bind_some]
+
+instance [Encodable A] : Encodable (Rose A) where
+  encode := encode
+  decode := decode
+  encodek := decode_encode
+
+instance [Countable A] : Countable (Rose A) := by
+  have := Encodable.ofCountable A
+  infer_instance
 
 end Rose

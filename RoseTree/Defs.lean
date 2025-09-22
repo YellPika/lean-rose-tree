@@ -1,5 +1,6 @@
 import Mathlib.Tactic.Lemma
 import Mathlib.Tactic.TypeStar
+import Mathlib.Logic.Equiv.List
 
 universe u
 variable {A B C : Type*}
@@ -27,5 +28,54 @@ def bind (f : A → Rose B) : Rose A → Rose B := fun
 instance : Monad Rose where
   pure x := ⟨x, []⟩
   bind := flip bind
+
+def encode [Encodable A] : Rose A → ℕ
+  | ⟨x, xs⟩ => Nat.pair (Encodable.encode x) (Encodable.encode (List.map encode xs))
+
+def decode [Encodable A] (n : ℕ) : Option (Rose A) :=
+  match Nat.unpair n, Nat.unpair_right_le n with
+  | (i, j), h => do
+    let x ← Encodable.decode₂ A i
+    match h' : Encodable.decode j with
+    | .none => .none
+    | .some (is : List ℕ) => do
+      let xs ← List.traverse id (List.ofFn fun i ↦ decode is[i])
+      return ⟨x, xs⟩
+  decreasing_by
+    apply Nat.lt_of_add_one_le
+    simp only [Fin.getElem_fin] at ⊢ h
+    apply le_trans ?_ h
+    have : j = Encodable.encode is := by
+      have := congr_arg (Option.map Encodable.encode) h'
+      simp only [
+        Denumerable.decode_eq_ofNat, Option.map_some,
+        Denumerable.encode_ofNat, Option.some.injEq] at this
+      exact this
+    subst this
+    induction is with
+    | nil =>
+      simp only [List.length_nil] at i
+      apply i.elim0
+    | cons head tail ih =>
+      have := Nat.left_le_pair head (Encodable.encode tail)
+      have := Nat.right_le_pair head (Encodable.encode tail)
+      cases i using Fin.cases with
+      | zero =>
+        simp only [
+          List.length_cons, Fin.coe_ofNat_eq_mod, Nat.zero_mod,
+          List.getElem_cons_zero, Encodable.encode_list_cons,
+          Encodable.encode_nat, Nat.succ_eq_add_one, ge_iff_le]
+        grind
+      | succ i =>
+        simp only [
+          List.length_cons, Fin.val_succ, List.getElem_cons_succ,
+          Encodable.encode_list_cons, Encodable.encode_nat,
+          Nat.succ_eq_add_one, ge_iff_le]
+        simp only [Encodable.encode_list_cons, Encodable.encode_nat, Nat.succ_eq_add_one] at h
+        specialize ih i (by grind)
+        simp only [
+          Denumerable.decode_eq_ofNat, Denumerable.ofNat_encode,
+          ge_iff_le, forall_const] at ih
+        grind
 
 end Rose
