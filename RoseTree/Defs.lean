@@ -25,6 +25,10 @@ def fold (f : A → List B → B) : Rose A → B
 def bind (f : A → Rose B) : Rose A → Rose B := fun
   | ⟨x, xs⟩ => ⟨(f x).label, (f x).children ++ List.map (bind f) xs⟩
 
+/-- Applies a function to every label in a `Rose` tree. -/
+def map (f : A → B) : Rose A → Rose B :=
+  bind (fun x ↦ ⟨f x, []⟩)
+
 instance : Monad Rose where
   pure x := ⟨x, []⟩
   bind := flip bind
