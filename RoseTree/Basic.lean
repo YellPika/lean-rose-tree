@@ -9,6 +9,11 @@ variable {A B C D : Type*}
 namespace Rose
 
 @[simp]
+lemma eta (t : Rose A) : mk t.label t.children = t := by
+  cases t
+  rfl
+
+@[simp]
 lemma label_bind (f : A → Rose B) (t : Rose A) : (bind f t).label = (f t.label).label := by
   cases t
   simp only [bind.eq_1]
@@ -98,34 +103,75 @@ lemma fold_eq_bind
   exact ih
 
 @[simp]
+lemma map_mk
+    (f : A → B) (x : A) (xs : List (Rose A))
+    : map f ⟨x, xs⟩ = ⟨f x, List.map (map f) xs⟩ := by
+  unfold map
+  simp only [bind.eq_1, List.nil_append]
+
+@[simp]
+lemma map_id {f : A → A} (hf : ∀ x, f x = x) (t) : map f t = t := by
+  unfold map
+  simp only [hf, bind_pure_fun, id_eq]
+
+@[simp]
+lemma map_map
+    (f : B → C) (g : A → B) (t : Rose A)
+    : map f (map g t) = map (fun x ↦ f (g x)) t := by
+  unfold map
+  simp only [bind_bind, bind.eq_1, List.map_nil, List.append_nil]
+
+@[simp]
+lemma map_bind
+    (f : B → C) (g : A → Rose B) (t : Rose A)
+    : map f (bind g t) = bind (fun x ↦ map f (g x)) t := by
+  unfold map
+  simp only [bind_bind]
+
+@[simp]
+lemma bind_map
+    (f : B → Rose C) (g : A → B) (t : Rose A)
+    : bind f (map g t) = bind (fun x ↦ f (g x)) t := by
+  unfold map
+  simp only [bind_bind, bind.eq_1, List.map_nil, List.append_nil, eta]
+
+@[simp]
+lemma bind_eq_map (f : A → B) (t : Rose A) : bind (fun x ↦ ⟨f x, []⟩) t = map f t := by rfl
+
+@[simp]
+lemma fold_map
+    (f : B → List C → C) (g : A → B) (t : Rose A)
+    : fold f (map g t) = fold (fun x ↦ f (g x)) t := by
+  induction t with | mk label children ih =>
+  simp only [map_mk, fold.eq_1, List.map_map]
+  congr 1
+  simp only [List.map_inj_left, Function.comp_apply]
+  exact ih
+
+@[simp]
 lemma bind_eq {B} (t : Rose A) (f : A → Rose B) : Bind.bind t f = bind f t := rfl
 
 @[simp]
 lemma pure_eq (x : A) : (pure x : Rose A) = ⟨x, []⟩ := rfl
 
 @[simp]
-lemma seq_eq {B} (f : Rose (A → B)) (t : Rose A) : f <*> t = bind (fun f ↦ f <$> t) f := rfl
+lemma seq_eq {B} (f : Rose (A → B)) (t : Rose A) : f <*> t = bind (fun f ↦ map f t) f := rfl
 
 @[simp]
-lemma map_eq {B} (f : A → B) (t : Rose A) : f <$> t = bind (fun x ↦ pure (f x)) t := rfl
+lemma map_eq {B} (f : A → B) (t : Rose A) : f <$> t = map f t := rfl
 
 @[simp]
-lemma seqLeft_eq {B} (t : Rose A) (u : Rose B) : t <* u = bind (fun x ↦ (fun _ ↦ x) <$> u) t := rfl
+lemma seqLeft_eq {B} (t : Rose A) (u : Rose B) : t <* u = bind (fun x ↦ map (fun _ ↦ x) u) t := rfl
 
 @[simp]
 lemma seqRight_eq {B} (t : Rose A) (u : Rose B) : t *> u = bind (fun _ ↦ u) t := rfl
 
-@[simp]
-lemma eta (t : Rose A) : mk t.label t.children = t := by
-  cases t
-  rfl
-
 instance : LawfulMonad Rose where
   bind_pure_comp := by
-    simp only [pure_eq, bind_eq, map_eq, implies_true]
+    simp only [pure_eq, bind_eq, bind_eq_map, map_eq, implies_true]
 
   bind_map := by
-    simp only [map_eq, pure_eq, bind_eq, seq_eq, implies_true]
+    simp only [map_eq, bind_eq, seq_eq, implies_true]
 
   pure_bind := by
     simp only [pure_eq, bind_eq, bind, List.map_nil, List.append_nil, eta, implies_true]
@@ -134,20 +180,18 @@ instance : LawfulMonad Rose where
     simp only [bind_eq, bind_bind, implies_true]
 
   seqLeft_eq := by
-    simp only [
-      seqLeft_eq, map_eq, pure_eq, seq_eq, bind_bind, bind.eq_1, Function.const_apply,
-      List.map_nil, List.append_nil, eta, implies_true]
+    simp (unfoldPartialApp := true) only [
+      seqLeft_eq, Function.const, map_eq, seq_eq, bind_map, implies_true]
 
   seqRight_eq := by
-    simp only [
-      seqRight_eq, map_eq, Function.const_apply, pure_eq, seq_eq, bind_bind, bind.eq_1,
-      id_eq, bind_pure_fun, List.map_nil, List.append_nil, eta, implies_true]
+    simp only [seqRight_eq, map_eq, seq_eq, bind_map, Function.const_apply, id_eq, implies_true,
+      map_id]
 
   pure_seq := by
     simp only [pure_eq, seq_eq, map_eq, bind.eq_1, List.map_nil, List.append_nil, eta, implies_true]
 
   id_map := by
-    simp only [map_eq, id_eq, pure_eq, bind_pure_fun, implies_true]
+    simp only [map_eq, id_eq, implies_true, map_id]
 
   map_const := rfl
 
