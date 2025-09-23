@@ -198,4 +198,58 @@ instance [Countable A] : Countable (Rose A) := by
   have := Encodable.ofCountable A
   infer_instance
 
+@[simp]
+lemma le_mk
+    [LE A] (x y : A) (xs ys : List (Rose A))
+    : mk x xs ≤ mk y ys ↔ x ≤ y ∧ List.Forall₂ (· ≤ ·) xs ys := by
+  simp only [LE.le, fold.eq_1, List.forall₂_map_left_iff, id_eq]
+
+instance [Preorder A] : Preorder (Rose A) where
+  le_refl x := by
+    induction x with | mk label children ih =>
+    simp only [le_mk, le_refl, List.forall₂_same, true_and]
+    exact ih
+  le_trans t u v h₁ h₂ := by
+    induction t generalizing u v with | mk _ xs ih =>
+    cases u with | mk _ ys =>
+    cases v with | mk _ zs =>
+    simp only [le_mk] at ⊢ h₁ h₂
+    apply And.intro
+    · trans
+      · apply h₁.1
+      · apply h₂.1
+    · induction xs generalizing ys zs with
+      | nil =>
+        simp_all only [
+          List.not_mem_nil, IsEmpty.forall_iff, implies_true,
+          List.forall₂_nil_left_iff, List.forall₂_same]
+      | cons _ _ ih' =>
+        cases ys with
+        | nil => simp only [List.forall₂_nil_right_iff, reduceCtorEq, and_false] at h₁
+        | cons _ _ =>
+          cases zs with
+          | nil => simp only [List.forall₂_nil_right_iff, reduceCtorEq, and_false] at h₂
+          | cons _ _ =>
+            simp only [List.forall₂_cons] at ⊢ h₁ h₂
+            grind
+
+instance [PartialOrder A] : PartialOrder (Rose A) where
+  le_antisymm t u := by
+    induction t generalizing u with | mk _ xs ih =>
+    cases u with | mk _ ys =>
+    simp only [le_mk, mk.injEq, and_imp]
+    intro h₁ h₂ h₃ h₄
+    apply And.intro
+    · apply le_antisymm h₁ h₃
+    · induction xs generalizing ys with
+      | nil =>
+        simp only [List.forall₂_nil_left_iff] at h₂
+        simp only [h₂]
+      | cons _ _ ih' =>
+        cases ys with
+        | nil => simp only [List.forall₂_nil_left_iff, reduceCtorEq] at h₄
+        | cons _ _ =>
+          simp only [List.forall₂_cons] at h₂ h₄
+          grind
+
 end Rose
