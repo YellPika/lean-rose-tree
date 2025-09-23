@@ -25,6 +25,16 @@ lemma children_bind
   cases t
   simp only [bind.eq_1]
 
+@[simp]
+lemma label_map (f : A → Rose B) (t : Rose A) : (map f t).label = f t.label := by
+  simp only [map, label_bind]
+
+@[simp]
+lemma children_map
+    (f : A → Rose B) (t : Rose A)
+    : (map f t).children = List.map (map f) t.children := by
+  simp only [map, children_bind, List.nil_append]
+
 @[induction_eliminator]
 lemma induction
     (motive : Rose A → Prop)
