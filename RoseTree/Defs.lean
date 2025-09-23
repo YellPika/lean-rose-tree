@@ -80,4 +80,7 @@ def decode [Encodable A] (n : ℕ) : Option (Rose A) :=
           ge_iff_le, forall_const] at ih
         grind
 
+instance [LE A] : LE (Rose A) where
+  le := fold fun x rec t ↦ x ≤ t.label ∧ List.Forall₂ id rec t.children
+
 end Rose
