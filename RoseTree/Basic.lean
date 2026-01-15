@@ -1,6 +1,10 @@
-import RoseTree.Defs
+module
+
+public import RoseTree.Defs
 import Mathlib.Tactic.NthRewrite
 import Mathlib.Control.Traversable.Instances
+
+@[expose] public section
 
 universe u
 
@@ -58,7 +62,7 @@ lemma induction'
     (motive : Rose A → Prop)
     (mk : (label : A)
         → (children : List (Rose A))
-        → (ih : ∀ i : Fin _, motive children[i])
+        → (ih : ∀ i : Fin children.length, motive children[i])
         → motive (.mk label children))
     (t : Rose A)
     : motive t := by

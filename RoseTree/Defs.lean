@@ -1,12 +1,17 @@
+module
+
 import Mathlib.Tactic.Lemma
 import Mathlib.Tactic.TypeStar
-import Mathlib.Logic.Equiv.List
+public import Mathlib.Logic.Equiv.List
+public import Mathlib.Logic.Encodable.Basic
+
+@[expose] public section
 
 universe u
 variable {A B C : Type*}
 
 /-- The type of node-labelled, finitely branching trees. -/
-structure Rose (A : Type u) : Type u where
+public structure Rose (A : Type u) : Type u where
   /-- The label of the root node. -/
   label : A
 
@@ -45,7 +50,7 @@ def decode [Encodable A] (n : ℕ) : Option (Rose A) :=
     match h' : Encodable.decode j with
     | .none => .none
     | .some (is : List ℕ) => do
-      let xs ← List.traverse id (List.ofFn fun i ↦ decode is[i])
+      let xs ← List.traverse id (List.ofFn fun i : Fin is.length ↦ decode is[i])
       return ⟨x, xs⟩
   decreasing_by
     apply Nat.lt_of_add_one_le
