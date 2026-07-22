@@ -1,9 +1,18 @@
+/-
+Copyright (c) 2026 Anthony Vandikas. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Anthony Vandikas, Kiarash Sotoudeh
+-/
 module
 
 import Mathlib.Tactic.Lemma
 import Mathlib.Tactic.TypeStar
 public import Mathlib.Logic.Equiv.List
 public import Mathlib.Logic.Encodable.Basic
+
+/-!
+This module provides the basic definition relating to rose trees.
+-/
 
 @[expose] public section
 
